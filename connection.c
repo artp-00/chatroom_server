@@ -14,6 +14,8 @@ struct connection_t *add_client(struct connection_t *head, int client_socket)
     new_connection->buffer = NULL;
     new_connection->nb_read = 0;
     new_connection->next = head;
+    new_connection->chatroom_id = NULL;
+    new_connection->pseudonyme = "Placeholder";
 
     return new_connection;
 }

@@ -12,6 +12,9 @@ struct connection_t
 
     char *buffer; /**< buffer containing the data received by this client */
 
+    char *pseudonyme;
+    char *chatroom_id;
+
     ssize_t nb_read; /**< number of bytes read (also size of the buffer) */
 
     struct connection_t *next; /**< the next client */

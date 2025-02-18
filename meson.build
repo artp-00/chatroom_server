@@ -1,5 +1,5 @@
 project(
-  'epoll_server',
+  'chatroom_server',
   'c',
   version : '1.0.0',
   default_options : [
@@ -18,12 +18,12 @@ pubinc = []
 inc = [include_directories('./')]
 src = files(
   'connection.c',
-  'epoll_server.c',
+  'chatroom_server.c',
   'utils/xalloc.c'
 )
 
 executable(
-  'epoll_server',
+  'chatroom_server',
   sources : src,
   include_directories : pubinc + inc,
   dependencies : deps,
