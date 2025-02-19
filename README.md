@@ -5,11 +5,11 @@ dependencies:
     meson
 
 compilation commands:
-    meson setup build
-    meson compile -C build
+    ./compile.sh
 
 run server:
-    ./chatroom_server ip port
+    ./launch.sh 127.0.0.1 3001
+    (compiles automatically if not already compiled)
 
 run client:
     nc ip port

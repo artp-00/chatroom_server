@@ -302,6 +302,8 @@ int main(int argc, char *argv[]) {
     // struct connection_t *tmp;
     // sert a check si la valeur de retour des fcts auxilières est null auquel cas une erreur s'est produit
     // et clients ne doit pas etre modifier
+    
+    printf("Server started.\n\tConnect to server with: nc (ip) (port)\n\n");
     for (;;)
     {
         struct epoll_event sevents[MAX_EVENTS]; // server events
