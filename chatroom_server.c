@@ -7,10 +7,10 @@
 
 #include "chatroom_server.h"
 #include "connection.h"
-#include "utils/xalloc.h"
+#include "utils/utils.h"
+#include "commands/commands.h"
 
 struct connection_t *remove_wrapper(struct connection_t *connection, int client_socket, int epoll_instance);
-int send_data(int client_socket, char *data, ssize_t data_length);
 
 int create_and_bind(struct addrinfo *addrinfo)
 {
@@ -117,20 +117,6 @@ int concatenate_nlc(char **data, char *buffer, ssize_t buff_len, size_t start_in
 }
 
 // struct connection_t *client_action(int epoll_instance, int client_socket, struct connection_t *connection, char *data, ssize_t data_length)
-int send_data(int client_socket, char *data, ssize_t data_length)
-{
-    ssize_t cpt = 0;
-    ssize_t tmp;
-    while (cpt < data_length)
-    {
-        // on envoie le msg au client et on update cpt
-        tmp = send(client_socket, data + cpt, data_length, 0); // 0 = NOFLAG
-        if (tmp == -1)
-            return -1;
-        cpt += tmp;
-    }
-    return 0;
-}
 
 char *get_message_value(char *data, ssize_t data_length, struct connection_t *sender)
 {
@@ -152,19 +138,30 @@ char *get_message_value(char *data, ssize_t data_length, struct connection_t *se
     return res;
 }
 
+
 // struct connection_t *client_action(struct connection_t *connection, int client_socket, int server_socket, char *data, ssize_t data_length)
 struct connection_t *client_action(struct connection_t *connection, char *data, ssize_t data_length, struct connection_t *sender)
 {
-    // fonctions changeant en fonction de l'utilisation du serveur
+    if (data[0] == '/' && client_command(connection, data + 1, data_length - 1, sender))
+        return connection;
+
+    if (sender->chatroom_id == NULL)
+    {
+        // no room
+        if (send_data(sender->client_socket, "You are currently not connected to any chatroom, /help for more information.\n", 78) != 0)
+            fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
+        return connection;
+    }
     
     char *message_value = get_message_value(data, data_length, sender);
     size_t true_size = strlen(message_value);
 
     struct connection_t *p;
     for (p = connection; p; p = p->next)
-        if (p != sender && send_data(p->client_socket, message_value, true_size) != 0)
-        // if (send_data(p->client_socket, message_value, true_size) != 0)
+        if (p != sender && strcmp(p->chatroom_id, sender->chatroom_id) == 0 && send_data(p->client_socket, message_value, true_size) != 0)
             fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
+
+    free(message_value);
     return connection;
 }
 
@@ -241,7 +238,6 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
     struct connection_t *tmp;
     switch (connection->stage)
     {
-        case CONNECTED_UNLINKED:
         case CONNECTED_UNNAMED:
             tmp = client_get_name(sender, data, size_cpt);
             break;
@@ -290,7 +286,7 @@ int main(int argc, char *argv[]) {
     // creation d'une instance epoll
     int ep_instance = epoll_create1(0);
     if (ep_instance == -1)
-        errx(1, "[CHATROOM SERVER MAIN] FAILED TO CREATE CHATROOM INSTANCE\n");
+        errx(1, "[CHATROOM SERVER MAIN] FAILED TO CREATE EPOLL INSTANCE\n");
 
     // creation du socket server
     int server_socket = prepare_socket(host, port);

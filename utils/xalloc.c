@@ -1,7 +1,4 @@
-#include "xalloc.h"
-
-#include <err.h>
-#include <stdlib.h>
+#include "utils.h"
 
 void *xmalloc(size_t size)
 {

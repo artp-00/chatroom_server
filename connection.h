@@ -5,7 +5,6 @@
 
 enum connection_stage
 {
-    CONNECTED_UNLINKED,
     CONNECTED_UNNAMED,
     CONNECTED_IDENTIFIED,
 };
@@ -59,5 +58,7 @@ struct connection_t *remove_client(struct connection_t *head,
  * \return The connection_t element of the specific client
  */
 struct connection_t *find_client(struct connection_t *head, int client_socket);
+
+size_t room_count(struct connection_t *head, char *room_id);
 
 #endif /* !CONNECTION_H */

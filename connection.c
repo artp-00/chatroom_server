@@ -3,8 +3,10 @@
 #include <err.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
-#include "utils/xalloc.h"
+#include "stdio.h"
+#include "utils/utils.h"
 
 struct connection_t *add_client(struct connection_t *head, int client_socket)
 {
@@ -14,7 +16,7 @@ struct connection_t *add_client(struct connection_t *head, int client_socket)
     new_connection->buffer = NULL;
     new_connection->nb_read = 0;
     new_connection->next = head;
-    new_connection->stage = CONNECTED_UNLINKED;
+    new_connection->stage = CONNECTED_UNNAMED;
     new_connection->chatroom_id = NULL;
     new_connection->pseudonyme = NULL;
 
@@ -31,6 +33,8 @@ struct connection_t *remove_client(struct connection_t *head, int client_socket)
         free(head->buffer);
         if (head->pseudonyme)
             free(head->pseudonyme);
+        if (head->chatroom_id)
+            free(head->chatroom_id);
         free(head);
         return client_connection;
     }
@@ -49,6 +53,8 @@ struct connection_t *remove_client(struct connection_t *head, int client_socket)
             // shoudlnt matter at all
             if (client_connection->pseudonyme)
                 free(client_connection->pseudonyme);
+            if (client_connection->chatroom_id)
+                free(client_connection->chatroom_id);
 
             free(client_connection);
             break;
@@ -65,4 +71,17 @@ struct connection_t *find_client(struct connection_t *head, int client_socket)
         head = head->next;
 
     return head;
+}
+
+size_t room_count(struct connection_t *head, char *room_id)
+{
+    size_t cpt = 0;
+    while (head != NULL)
+    {
+        if (head->chatroom_id != NULL && strcmp(head->chatroom_id, room_id) == 0)
+            cpt++;
+        head = head->next;
+    }
+
+    return cpt;
 }

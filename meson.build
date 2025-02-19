@@ -19,7 +19,9 @@ inc = [include_directories('./')]
 src = files(
   'connection.c',
   'chatroom_server.c',
-  'utils/xalloc.c'
+  'utils/xalloc.c',
+  'utils/net_utils.c',
+  'commands/commands.c'
 )
 
 executable(
