@@ -6,8 +6,11 @@
 #include <stdlib.h>
 
 #include "chatroom_server.h"
+#include "connection.h"
 #include "utils/xalloc.h"
 
+struct connection_t *remove_wrapper(struct connection_t *connection, int client_socket, int epoll_instance);
+int send_data(int client_socket, char *data, ssize_t data_length);
 
 int create_and_bind(struct addrinfo *addrinfo)
 {
@@ -89,6 +92,11 @@ struct connection_t *accept_client(int epoll_instance, int server_socket,
         close(new_client_socket);
         return NULL;
     }
+    printf("[CHATROOM SERVER ACCEPT] Received connection request on socket: %d\n", new_client_socket);
+    char *pseudonyme_question = "Enter your pseudonyme: ";
+    if (send_data(new_client_socket, pseudonyme_question, strlen(pseudonyme_question)) != 0)
+        fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] FAILED TO BROADCAST MESSAGE TO A CLIENT\n");
+
     return nc;
 }
 
@@ -124,17 +132,58 @@ int send_data(int client_socket, char *data, ssize_t data_length)
     return 0;
 }
 
+char *get_message_value(char *data, ssize_t data_length, struct connection_t *sender)
+{
+    // "pseudonyme: "
+    size_t new_size = strlen(sender->pseudonyme) + 2;
+    // null byte
+    new_size += data_length + 1;
+
+    char *res = xcalloc(new_size, sizeof(char));
+    res = memcpy(res, sender->pseudonyme, strlen(sender->pseudonyme));
+    if (!res)
+        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
+    void *err = memcpy(res + strlen(sender->pseudonyme), ": ", 2);
+    if (!err)
+        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
+    err = memcpy(res + strlen(sender->pseudonyme) + 2, data, data_length);
+    if (!err)
+        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
+    return res;
+}
+
 // struct connection_t *client_action(struct connection_t *connection, int client_socket, int server_socket, char *data, ssize_t data_length)
-struct connection_t *client_action(struct connection_t *connection, char *data, ssize_t data_length)
+struct connection_t *client_action(struct connection_t *connection, char *data, ssize_t data_length, struct connection_t *sender)
 {
     // fonctions changeant en fonction de l'utilisation du serveur
+    
+    char *message_value = get_message_value(data, data_length, sender);
+    size_t true_size = strlen(message_value);
 
     struct connection_t *p;
     for (p = connection; p; p = p->next)
-        if (send_data(p->client_socket, data, data_length) != 0)
-            fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] FAILED TO BROADCAST MESSAGE TO A CLIENT\n");
+        if (p != sender && send_data(p->client_socket, message_value, true_size) != 0)
+        // if (send_data(p->client_socket, message_value, true_size) != 0)
+            fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
+    return connection;
+}
 
+struct connection_t *client_get_name(struct connection_t *connection, char *data, ssize_t data_length)
+{
+    // fonctions changeant en fonction de l'utilisation du serveur
 
+    // null bad already initialized
+    char *pseudonyme = xcalloc(data_length, sizeof(char));
+    data[data_length - 1] = 0;
+    pseudonyme = memcpy(pseudonyme, data, data_length);
+
+    // printf("[DEBUG] Got pseudonyme: %s of length: %ld\n", pseudonyme, data_length);
+    // update pseudonyme
+    connection->pseudonyme = pseudonyme;
+    printf("[CHATROOM SERVER CLIENT] Got pseudonyme %s from client in socket %d\n", pseudonyme, connection->client_socket);
+
+    // update client state
+    connection->stage = CONNECTED_IDENTIFIED;
     return connection;
 }
 
@@ -174,7 +223,6 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
         if (errc == -1)
         {
             fprintf(stderr, "[CHATROOM SERVER HANDLE CLIENT EVENT] FAILED TO RECEIVE CLIENT MESSAGE\n");
-            //fprintf(stderr, "errno: %s\n", strerror(errno));
             return NULL;
         }
         if (errc == 0) // client socket closed
@@ -182,12 +230,25 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
     }
     size_cpt += errc;
 
-    //printf("messaged received: \n");
-    //write(STDOUT_FILENO, data, size_cpt);
+    // printf("messaged received: \n");
+    // write(STDOUT_FILENO, data, size_cpt);
+    //
+    // int err = client_action(epoll_instance, client_socket, server_socket, connection, data, sizeof(data));
+    // on reagit a le requete
 
-    //int err = client_action(epoll_instance, client_socket, server_socket, connection, data, sizeof(data));
-    //on reagit a le requete
-    struct connection_t *tmp = client_action(connection, data, size_cpt);
+    struct connection_t *sender = find_client(connection, client_socket);
+
+    struct connection_t *tmp;
+    switch (connection->stage)
+    {
+        case CONNECTED_UNLINKED:
+        case CONNECTED_UNNAMED:
+            tmp = client_get_name(sender, data, size_cpt);
+            break;
+        case CONNECTED_IDENTIFIED:
+            tmp = client_action(connection, data, size_cpt, sender);
+            break;
+    }
     if (!tmp)
     {
         close(client_socket);
@@ -238,30 +299,27 @@ int main(int argc, char *argv[]) {
     struct connection_t *clients = NULL;
     // clients = structure contenant des informations sur tout les clients
     //           event contient un pointeur vers cet structure
-    //struct connection_t *tmp;
+    // struct connection_t *tmp;
     // sert a check si la valeur de retour des fcts auxilières est null auquel cas une erreur s'est produit
     // et clients ne doit pas etre modifier
     for (;;)
     {
         struct epoll_event sevents[MAX_EVENTS]; // server events
 
-        //printf("Waiting for connections...\n");
+        // stocks events in sevents and event count in ecount
         int ecount = epoll_wait(ep_instance, sevents, MAX_EVENTS, -1);
-        // stock tout les events dans sevents et le nombre devent dans ecount
-        // // fonction bloquante
         if (ecount == -1)
             errx(1, "[CHATROOM SERVER MAIN] FAILED TO WAIT FOR CLIENT SOCKET\n");
 
         // on parcours tout les events non traité
         for (int i = 0; i < ecount; i++)
         {
-            //printf("[CHATROOM SERVER DEBUG] INLOOP: processing event %d of ecount: %d\n", i, ecount);
             if (sevents[i].data.fd == -1) // server socket event
             {
                 struct connection_t *tmp = accept_client(ep_instance, server_socket, clients);
                 if (tmp)
                     clients = tmp;
-                // si tmp == NULL: erreur
+                // if tmp == NULL: error
             }
             else // client socket event
             {
@@ -269,11 +327,10 @@ int main(int argc, char *argv[]) {
                 struct connection_t *tmp = handle_client_event(ep_instance, sevents[i].data.fd, clients);
                 if (tmp)
                     clients = tmp;
-                // si tmp == NULL: erreur
+                // if tmp == NULL: error
             }
         }
     }
-
     close(server_socket);
     return 0;
 }

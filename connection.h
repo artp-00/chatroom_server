@@ -3,21 +3,27 @@
 
 #include <sys/types.h>
 
-/**
- * \brief Contains the information about the clients (linked list)
- */
+enum connection_stage
+{
+    CONNECTED_UNLINKED,
+    CONNECTED_UNNAMED,
+    CONNECTED_IDENTIFIED,
+};
+
+// Contains the information about the clients (linked list)
 struct connection_t
 {
-    int client_socket; /**< socket fd of the client */
+    int client_socket;
 
-    char *buffer; /**< buffer containing the data received by this client */
+    char *buffer; // buffer containing the data received by this client
 
     char *pseudonyme;
     char *chatroom_id;
+    enum connection_stage stage;
 
-    ssize_t nb_read; /**< number of bytes read (also size of the buffer) */
+    ssize_t nb_read; // number of bytes read (also size of the buffer)
 
-    struct connection_t *next; /**< the next client */
+    struct connection_t *next; // the next client
 };
 
 /**

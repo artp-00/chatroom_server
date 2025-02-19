@@ -14,8 +14,9 @@ struct connection_t *add_client(struct connection_t *head, int client_socket)
     new_connection->buffer = NULL;
     new_connection->nb_read = 0;
     new_connection->next = head;
+    new_connection->stage = CONNECTED_UNLINKED;
     new_connection->chatroom_id = NULL;
-    new_connection->pseudonyme = "Placeholder";
+    new_connection->pseudonyme = NULL;
 
     return new_connection;
 }
@@ -28,6 +29,8 @@ struct connection_t *remove_client(struct connection_t *head, int client_socket)
         if (close(head->client_socket) == -1)
             err(EXIT_FAILURE, "Failed to close socket");
         free(head->buffer);
+        if (head->pseudonyme)
+            free(head->pseudonyme);
         free(head);
         return client_connection;
     }
@@ -41,7 +44,12 @@ struct connection_t *remove_client(struct connection_t *head, int client_socket)
             tmp->next = client_connection->next;
             if (close(client_connection->client_socket) == -1)
                 err(EXIT_FAILURE, "Failed to close socket");
+
             free(client_connection->buffer);
+            // shoudlnt matter at all
+            if (client_connection->pseudonyme)
+                free(client_connection->pseudonyme);
+
             free(client_connection);
             break;
         }
