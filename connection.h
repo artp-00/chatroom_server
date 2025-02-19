@@ -25,40 +25,15 @@ struct connection_t
     struct connection_t *next; // the next client
 };
 
-/**
- * \brief Adds a new client connection_t to the linked list
- *
- * \param connection: the connection_t linked list with all the clients
- *
- * \param client_socket: the client socket fd to add
- *
- * \return The connection_t linked list with the element added
- */
+
 struct connection_t *add_client(struct connection_t *head, int client_socket);
 
-/**
- * \brief Removes the client connection_t from the linked list connection
- *
- * \param connection: the connection_t linked list with all the clients
- *
- * \param client_socket: the client socket fd to remove
- *
- * \return The connection_t linked list with element removed
- */
-struct connection_t *remove_client(struct connection_t *head,
-                                   int client_socket);
+struct connection_t *remove_client(struct connection_t *head, int client_socket);
 
-/**
- * \brief Find the connection_t element where the socket is equal to client sock
- *
- * \param connection: the connection_t linked list with all the clients
- *
- * \param client_socket: the client socket to find
- *
- * \return The connection_t element of the specific client
- */
+// find client based on socket
 struct connection_t *find_client(struct connection_t *head, int client_socket);
 
+// count number of clients in a room
 size_t room_count(struct connection_t *head, char *room_id);
 
 #endif /* !CONNECTION_H */
