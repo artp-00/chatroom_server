@@ -72,8 +72,7 @@ int prepare_socket(const char *ip, const char *port)
 struct connection_t *accept_client(int epoll_instance, int server_socket,
                                    struct connection_t *connection)
 {
-    // on accepte la premiere connection vers le serveur et creer un socket permettant de communiquer
-    // pas sur des params null
+    // we accept the first connection to the server and create a socket to communicate
     int new_client_socket = accept(server_socket, NULL, NULL);
     if (new_client_socket == -1)
     {
@@ -103,11 +102,11 @@ struct connection_t *accept_client(int epoll_instance, int server_socket,
 
 int concatenate_nlc(char **data, char *buffer, ssize_t buff_len, size_t start_index) // nlc = newline check
 {
-    // cet fonction concatene deux chaines de characteres en place et renvoie true si un charactere newline est detecter
-    // pourrait changer pour differentes utilisation du serveur
+    // this function concatenates two strings in place and returns trye if a newline is detected
     int res = 0;
     //printf("[DEBUG]: concatenate_nld | start_index: %ld | reallocating %ld bytes\n", start_index, start_index + buff_len);
-    *data = xrealloc(*data, start_index + buff_len); // taille du strings actuel + des chars a ajouter
+    *data = xrealloc(*data, start_index + buff_len); // size of current strings + chars to add
+                                                     
     for (ssize_t i = 0; i < buff_len; i++)
     {
         if (buffer[i] == '\n')
@@ -220,9 +219,8 @@ struct connection_t *remove_wrapper(struct connection_t *connection, int client_
 
 struct connection_t *handle_client_event(int epoll_instance, int client_socket, struct connection_t *connection)
 {
-    // fonction mystique a commenter
     char buffer[DEFAULT_BUFFER_SIZE];
-    // recv ne recoit pas forcement tt d'un coup
+    // recv doesnt receive everything at once
     ssize_t errc = recv(client_socket, buffer, DEFAULT_BUFFER_SIZE, 0); // 0 = flags / aucun flag
 
     //printf("[DEBUG]: recv of size %ld\n", errc);
@@ -237,7 +235,7 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
     //struct connection_t *current = find_client(connection, client_socket);
     char *data = NULL;
     size_t size_cpt = 0;
-    // tant qu'il n'y a pas de newline on concatene et on receive
+    // while there is no newline we concatenate and receive
     while (!concatenate_nlc(&data, buffer, errc, size_cpt))
     {
         size_cpt += errc;
@@ -252,11 +250,9 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
     }
     size_cpt += errc;
 
-    // printf("messaged received: \n");
     // write(STDOUT_FILENO, data, size_cpt);
     //
     // int err = client_action(epoll_instance, client_socket, server_socket, connection, data, sizeof(data));
-    // on reagit a le requete
 
     struct connection_t *sender = find_client(connection, client_socket);
 
@@ -281,22 +277,21 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
 
 int setup_epoll(int ep_instance, int server_socket)
 {
-    // creation de l'event du server socket
+    // creation of the epoll event for the instance
     struct epoll_event server_event;
     server_event.events = EPOLLIN;
     server_event.data.fd = -1;
 
     // epoll:
-    //          event = action detecter
-    //          epoll_event.events = config des events
-    //          CHATROOMIN = detecter une action quand le socket recoit qq chose
-    //          epoll_event.data = data stocker dans chaque event
-    //                  ici un socket client
+    //          event = action detected
+    //          epoll_event.events = config of events
+    //          EPOLLIN = detect action when socket receives data
+    //          epoll_event.data = data stored in event
 
     // ajout du socket a l'environnement epoll
-    // option CHATROOM_CTL_ADD = action d'ajout
+    // option EPOLL_CTL_ADD = action d'ajout
     if (epoll_ctl(ep_instance, EPOLL_CTL_ADD, server_socket, &server_event))
-        errx(1, "[CHATROOM SERVER MAIN] FAILED TO ADD SERVER SOCKET TO CHATROOM LIST OF INTEREST\n");
+        errx(1, "[CHATROOM SERVER MAIN] FAILED TO ADD SERVER SOCKET TO EPOLL LIST OF INTEREST\n");
 
     return ep_instance;
 }
@@ -308,21 +303,18 @@ int main(int argc, char *argv[]) {
     char *host = argv[1];
     char *port = argv[2];
 
-    // creation d'une instance epoll
+    // creation of epoll instance
     int ep_instance = epoll_create1(0);
     if (ep_instance == -1)
         errx(1, "[CHATROOM SERVER MAIN] FAILED TO CREATE EPOLL INSTANCE\n");
 
-    // creation du socket server
+    // creating the socket server
     int server_socket = prepare_socket(host, port);
     ep_instance = setup_epoll(ep_instance, server_socket);
 
     struct connection_t *clients = NULL;
-    // clients = structure contenant des informations sur tout les clients
-    //           event contient un pointeur vers cet structure
-    // struct connection_t *tmp;
-    // sert a check si la valeur de retour des fcts auxilières est null auquel cas une erreur s'est produit
-    // et clients ne doit pas etre modifier
+    // clients = struct containing information about the clients
+    //           event contains a pointer to this struct
     
     printf("Server started.\n\tConnect to server with: nc (ip) (port)\n\n");
     for (;;)
@@ -334,7 +326,7 @@ int main(int argc, char *argv[]) {
         if (ecount == -1)
             errx(1, "[CHATROOM SERVER MAIN] FAILED TO WAIT FOR CLIENT SOCKET\n");
 
-        // on parcours tout les events non traité
+        // iterate through the events
         for (int i = 0; i < ecount; i++)
         {
             if (sevents[i].data.fd == -1) // server socket event
@@ -346,7 +338,7 @@ int main(int argc, char *argv[]) {
             }
             else // client socket event
             {
-                // il reste la edge case de message trop grand mais jamais eu de probleme ?
+                // TODO: dynamic buffer allocation
                 struct connection_t *tmp = handle_client_event(ep_instance, sevents[i].data.fd, clients);
                 if (tmp)
                     clients = tmp;
