@@ -274,7 +274,6 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
     return connection;
 }
 
-
 int setup_epoll(int ep_instance, int server_socket)
 {
     // creation of the epoll event for the instance

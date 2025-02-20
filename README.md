@@ -2,6 +2,8 @@
 Very barebones messaging service written in c for linux
 
 dependencies:
+    c
+    netcat
     meson
 
 compilation commands:
