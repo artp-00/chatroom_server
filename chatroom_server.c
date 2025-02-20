@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "chatroom_server.h"
 #include "connection.h"
@@ -120,24 +121,41 @@ int concatenate_nlc(char **data, char *buffer, ssize_t buff_len, size_t start_in
 
 char *get_message_value(char *data, ssize_t data_length, struct connection_t *sender)
 {
+    time_t t = time(NULL);
+    struct tm *loctime = localtime(&t);
+    char date[128];
+    size_t date_size = strftime(date, sizeof(date), "[%F | %Hh%M] ", loctime);
+    if (date_size == 0)
+    {
+        // error handling
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to get time due to buffer being too short.");
+    }
+
+    // "date "
+    size_t new_size = strlen(date);
     // "pseudonyme: "
-    size_t new_size = strlen(sender->pseudonyme) + 2;
+    new_size += strlen(sender->pseudonyme) + 2;
     // null byte
     new_size += data_length + 1;
 
+
     char *res = xcalloc(new_size, sizeof(char));
-    res = memcpy(res, sender->pseudonyme, strlen(sender->pseudonyme));
     if (!res)
-        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
-    void *err = memcpy(res + strlen(sender->pseudonyme), ": ", 2);
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    void *err = memcpy(res, date, date_size);
     if (!err)
-        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
-    err = memcpy(res + strlen(sender->pseudonyme) + 2, data, data_length);
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    err = memcpy(res + date_size, sender->pseudonyme, strlen(sender->pseudonyme));
     if (!err)
-        errx(2, "[CHATROOM SERVER CLIENT ACTION] Failed to build message value\n");
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    err = memcpy(res + strlen(sender->pseudonyme) + date_size, ": ", 2);
+    if (!err)
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    err = memcpy(res + strlen(sender->pseudonyme) + 2 + date_size, data, data_length);
+    if (!err)
+        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
     return res;
 }
-
 
 // struct connection_t *client_action(struct connection_t *connection, int client_socket, int server_socket, char *data, ssize_t data_length)
 struct connection_t *client_action(struct connection_t *connection, char *data, ssize_t data_length, struct connection_t *sender)
@@ -165,7 +183,7 @@ struct connection_t *client_action(struct connection_t *connection, char *data, 
     return connection;
 }
 
-struct connection_t *client_get_name(struct connection_t *connection, char *data, ssize_t data_length)
+struct connection_t *client_get_name(struct connection_t *target, char *data, ssize_t data_length)
 {
     // fonctions changeant en fonction de l'utilisation du serveur
 
@@ -176,12 +194,19 @@ struct connection_t *client_get_name(struct connection_t *connection, char *data
 
     // printf("[DEBUG] Got pseudonyme: %s of length: %ld\n", pseudonyme, data_length);
     // update pseudonyme
-    connection->pseudonyme = pseudonyme;
-    printf("[CHATROOM SERVER CLIENT] Got pseudonyme %s from client in socket %d\n", pseudonyme, connection->client_socket);
+    target->pseudonyme = pseudonyme;
+    printf("[CHATROOM SERVER CLIENT] Got pseudonyme %s from client in socket %d\n", pseudonyme, target->client_socket);
 
     // update client state
-    connection->stage = CONNECTED_IDENTIFIED;
-    return connection;
+    target->stage = CONNECTED_IDENTIFIED;
+
+    clear_client_screen(target);
+
+    char *welcome_msg;
+    int welcome_size = asprintf(&welcome_msg, "Welcome, %s.\n", pseudonyme);
+    if (welcome_size == -1 || send_data(target->client_socket, welcome_msg, welcome_size) != 0)
+        fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
+    return target;
 }
 
 struct connection_t *remove_wrapper(struct connection_t *connection, int client_socket, int epoll_instance)
