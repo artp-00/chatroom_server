@@ -25,6 +25,12 @@ struct connection_t
     struct connection_t *next; // the next client
 };
 
+// linked list
+struct chatroom
+{
+    char *chatroom_id;
+    struct chatroom *next;
+};
 
 struct connection_t *add_client(struct connection_t *head, int client_socket);
 

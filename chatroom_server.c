@@ -214,6 +214,7 @@ struct connection_t *remove_wrapper(struct connection_t *connection, int client_
         errx(1, "[CHATROOM SERVER HANDLE CLIENT EVENT] FAILED TO REMOVE SOCKET FROM CHATROOM INSTANCE\n");
 
     connection = remove_client(connection, client_socket);
+    close(client_socket);
     return connection;
 }
 

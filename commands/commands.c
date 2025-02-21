@@ -1,3 +1,4 @@
+#include <string.h>
 #include <sys/epoll.h>
 #include <stdlib.h>
 
@@ -13,15 +14,40 @@ ssize_t get_next_space(char *data, ssize_t data_length)
     return i;
 }
 
+char *concat(char *first, char *second)
+{
+    if (second == NULL)
+        return first;
+    if (first == NULL)
+    {
+        size_t len2 = strlen(second);
+        char *res = xcalloc(len2 + 1, sizeof(char));
+        void *err = memcpy(res, second, len2);
+        if (!err)
+            return NULL;
+        return res;
+    }
+    size_t len1 = strlen(first);
+    size_t len2 = strlen(second);
+    char *res = xrealloc(first, sizeof(char) * (len1 + len2 + 1));
+    void *err = memcpy(res + len1, second, len2);
+    if (!err)
+        return NULL;
+    res[len1 + len2] = 0;
+    return res;
+}
+
 void clear_client_screen(struct connection_t *target)
 {
-    char *clear_string = "\e[H\e[2J\e[3J";
+    char *clear_string = "\e[H\e[2JP\e[3J";
     if (send_data(target->client_socket, clear_string, strlen(clear_string)) != 0)
         fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
 }
 
 _Bool client_command(struct connection_t *connection, char *data, ssize_t data_length, struct connection_t *sender)
 {
+    // very long function
+    // should probably be separated into individual functions for commands but need context first
     ssize_t next_space = get_next_space(data, data_length - 1);
 
     char *command = xcalloc(next_space + 1, sizeof(char));
@@ -57,13 +83,13 @@ _Bool client_command(struct connection_t *connection, char *data, ssize_t data_l
         }
         free(response);
     }
-    if (strcmp(command, "quit") == 0)
+    else if (strcmp(command, "quit") == 0)
     {
         // TODO: implement
         //          need epoll instance in order to cleanly remove client
         //          => implement a context
     }
-    if (strcmp(command, "room") == 0)
+    else if (strcmp(command, "room") == 0)
     {
         char *new_room = xcalloc(data_length - next_space, sizeof(char));
         memcpy(new_room, data + next_space + 1, data_length - next_space - 2);
@@ -102,22 +128,82 @@ _Bool client_command(struct connection_t *connection, char *data, ssize_t data_l
 
         free(response);
     }
-    if (strcmp(command, "help") == 0)
+    else if (strcmp(command, "help") == 0)
     {
-        // TODO: implement
+        char *help_string =  "To chat with someone you need to be in a room with them,\nyou can use commands to find out where they are and connect to their room.\nCommand list:\n\t/help: Prints this message. \n\t/room [room_id]: Connects you to a room. \n\t/leave: Exits the room you are currently in. \n\t/clear: Clears the screen. \n\t/users: Lists the current users and where they are.\n";
+        if (send_data(sender->client_socket, help_string, strlen(help_string)) != 0)
+            fprintf(stderr, "[CHATROOM SERVER USERS COMMAND] Failed to broadcast message to a client\n");
+
     }
-    if (strcmp(command, "clear") == 0)
+    else if (strcmp(command, "clear") == 0)
     {
         clear_client_screen(sender);
     }
-    // lists
-    if (strcmp(command, "users") == 0)
+    else if (strcmp(command, "users") == 0)
     {
-        // TODO: implement
+        char *init_string = "Connected user:\n";
+        char *res = concat(NULL, init_string);
+        char *tmp;
+        int nbytes;
+        char *buffer;
+        struct connection_t *p;
+        for (p = connection; p; p = p->next)
+        {
+            if (p->pseudonyme && p == sender)
+            {
+                if (p->chatroom_id)
+                    nbytes = asprintf(&buffer, "\tUser %s(you) in room %s.\n", p->pseudonyme, p->chatroom_id);
+                else
+                    nbytes = asprintf(&buffer, "\tUser %s(you) not in a room.\n", p->pseudonyme);
+                if (nbytes != -1)
+                {
+                    tmp = concat(res, buffer);
+                    if (tmp)
+                        res = tmp;
+                    free(buffer);
+                }
+            }
+            else if (p->pseudonyme)
+            {
+                if (p->chatroom_id)
+                    nbytes = asprintf(&buffer, "\tUser %s in room %s.\n", p->pseudonyme, p->chatroom_id);
+                else
+                    nbytes = asprintf(&buffer, "\tUser %s not in a room.\n", p->pseudonyme);
+                if (nbytes != -1)
+                {
+                    tmp = concat(res, buffer);
+                    if (tmp)
+                        res = tmp;
+                    free(buffer);
+                }
+            }
+        }
+        if (send_data(sender->client_socket, res, strlen(res)) != 0)
+            fprintf(stderr, "[CHATROOM SERVER USERS COMMAND] Failed to broadcast message to a client\n");
+        free(res);
     }
-    if (strcmp(command, "rooms") == 0)
+    else if (strcmp(command, "rooms") == 0)
     {
         // TODO: implement
+        // requires context
+
+        // char *res = NULL;
+        // struct connection_t *p;
+        // for (p = connection; p; p = p->next)
+        // {
+        //     if (p->chatroom_id && )
+        // }
+    }
+    else
+    {
+        // unknown command
+        char *unknown_message;
+        int nbytes = asprintf(&unknown_message, "Unknown command %s.\n", command);
+        if (nbytes != -1 && send_data(sender->client_socket, unknown_message, nbytes) != 0)
+        {
+            fprintf(stderr, "[CHATROOM SERVER USERS COMMAND] Failed to broadcast message to a client\n");
+            free(unknown_message);
+        }
     }
 
     free(command);
