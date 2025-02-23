@@ -7,7 +7,6 @@
 #include <time.h>
 
 #include "chatroom_server.h"
-#include "connection.h"
 #include "utils/utils.h"
 #include "commands/commands.h"
 
@@ -321,7 +320,7 @@ int main(int argc, char *argv[]) {
     {
         struct epoll_event sevents[MAX_EVENTS]; // server events
 
-        // stocks events in sevents and event count in ecount
+        // stores events in sevents and event count in ecount
         int ecount = epoll_wait(ep_instance, sevents, MAX_EVENTS, -1);
         if (ecount == -1)
             errx(1, "[CHATROOM SERVER MAIN] FAILED TO WAIT FOR CLIENT SOCKET\n");

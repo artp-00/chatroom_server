@@ -42,4 +42,12 @@ struct connection_t *find_client(struct connection_t *head, int client_socket);
 // count number of clients in a room
 size_t room_count(struct connection_t *head, char *room_id);
 
+void free_connections(struct connection_t *head);
+
+struct chatroom *add_chatroom(struct chatroom *head, char *name);
+
+struct chatroom *remove_chatroom(struct chatroom *head, char *name);
+
+void free_chatrooms(struct chatroom *head);
+
 #endif /* !CONNECTION_H */

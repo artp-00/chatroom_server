@@ -17,7 +17,7 @@ deps = []
 pubinc = []
 inc = [include_directories('./')]
 src = files(
-  'connection.c',
+  'context/connection.c',
   'chatroom_server.c',
   'utils/xalloc.c',
   'utils/net_utils.c',

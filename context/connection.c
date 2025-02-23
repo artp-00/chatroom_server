@@ -85,3 +85,22 @@ size_t room_count(struct connection_t *head, char *room_id)
 
     return cpt;
 }
+
+void free_connections(struct connection_t *head)
+{
+    if (head)
+    {
+        free_connections(head->next);
+        if (close(head->client_socket) == -1)
+            err(EXIT_FAILURE, "Failed to close socket");
+
+        free(head->buffer);
+        // shoudlnt matter at all
+        if (head->pseudonyme)
+            free(head->pseudonyme);
+        if (head->chatroom_id)
+            free(head->chatroom_id);
+        free(head);
+    }
+}
+
