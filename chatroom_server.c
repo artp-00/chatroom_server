@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include "chatroom_server.h"
+#include "sys/socket.h"
 #include "utils/utils.h"
 #include "commands/commands.h"
 
@@ -122,17 +123,20 @@ char *get_message_value(char *data, ssize_t data_length, struct connection_t *se
     time_t t = time(NULL);
     struct tm *loctime = localtime(&t);
     char date[128];
-    size_t date_size = strftime(date, sizeof(date), "[%F | %Hh%M] ", loctime);
+    size_t date_size = strftime(date, sizeof(date), "\e[0;34m[%F | %Hh%M] \e[1;33m", loctime);
     if (date_size == 0)
     {
         // error handling
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to get time due to buffer being too short.");
     }
+    char *fpseudo;
+    size_t pseudo_size = asprintf(&fpseudo, "%s\e[1;37m: ", sender->pseudonyme);
 
     // "date "
     size_t new_size = strlen(date);
     // "pseudonyme: "
-    new_size += strlen(sender->pseudonyme) + 2;
+    new_size += strlen(fpseudo);
+    // new_size += strlen(sender->pseudonyme) + 9;
     // null byte
     new_size += data_length + 1;
 
@@ -143,15 +147,19 @@ char *get_message_value(char *data, ssize_t data_length, struct connection_t *se
     void *err = memcpy(res, date, date_size);
     if (!err)
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
-    err = memcpy(res + date_size, sender->pseudonyme, strlen(sender->pseudonyme));
+    err = memcpy(res + date_size, fpseudo, pseudo_size);
     if (!err)
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
-    err = memcpy(res + strlen(sender->pseudonyme) + date_size, ": ", 2);
+    // err = memcpy(res + date_size, sender->pseudonyme, strlen(sender->pseudonyme));
+    // if (!err)
+    //     errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    // err = memcpy(res + strlen(sender->pseudonyme) + date_size, ": ", 2);
+    // if (!err)
+    //     errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    err = memcpy(res + pseudo_size + date_size, data, data_length);
     if (!err)
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
-    err = memcpy(res + strlen(sender->pseudonyme) + 2 + date_size, data, data_length);
-    if (!err)
-        errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
+    free(fpseudo);
     return res;
 }
 
