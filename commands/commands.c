@@ -104,7 +104,7 @@ _Bool client_command(struct connection_t *connection, char *data, ssize_t data_l
         if (old_chatroom)
         {
             size = asprintf(&response, "[Notification] User %s just left to your room.\n", sender->pseudonyme);
-        
+
             struct connection_t *p;
             for (p = connection; p; p = p->next)
                 if (p->chatroom_id && strcmp(p->chatroom_id, old_chatroom) == 0 && send_data(p->client_socket, response, size) != 0)
@@ -126,6 +126,8 @@ _Bool client_command(struct connection_t *connection, char *data, ssize_t data_l
             if (p->chatroom_id && strcmp(p->chatroom_id, sender->chatroom_id) == 0 && send_data(p->client_socket, response, size) != 0)
                 fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
 
+        // new_room leaks currently but it shall be added to a rooms linked list in order to keep track of all the rooms
+        // it cant be freed here
         free(response);
     }
     else if (strcmp(command, "help") == 0)

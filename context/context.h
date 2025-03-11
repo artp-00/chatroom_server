@@ -10,4 +10,8 @@ struct context
     int server_socket;
 };
 
+struct context *create_context(int ep_instance, int srv_sckt);
+void rm_ep_clients(int ep_instance, struct connection_t *head);
+void free_context(struct context *ctx);
+
 #endif // CONTEXT_H

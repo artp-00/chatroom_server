@@ -10,6 +10,16 @@
 #define MAX_EVENTS 64
 
 #define DEFAULT_BUFFER_SIZE 2048
+
+/*
+ * TODO:
+ *  exit process
+ *  implement colors
+ *  implement context
+ *  implement missing commands
+ *
+ */
+
 int create_and_bind(struct addrinfo *addrinfo);
 
 int prepare_socket(const char *ip, const char *port);

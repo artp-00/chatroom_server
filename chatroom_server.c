@@ -130,7 +130,7 @@ char *get_message_value(char *data, ssize_t data_length, struct connection_t *se
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to get time due to buffer being too short.");
     }
     char *fpseudo;
-    size_t pseudo_size = asprintf(&fpseudo, "%s\e[1;37m: ", sender->pseudonyme);
+    size_t pseudo_size = asprintf(&fpseudo, "%s\033[0m: ", sender->pseudonyme);
 
     // "date "
     size_t new_size = strlen(date);
@@ -160,6 +160,7 @@ char *get_message_value(char *data, ssize_t data_length, struct connection_t *se
     if (!err)
         errx(2, "[CHATROOM SERVER GET MESSAGE VALUE] Failed to build message value\n");
     free(fpseudo);
+    // just use asprintf ???
     return res;
 }
 
@@ -212,6 +213,7 @@ struct connection_t *client_get_name(struct connection_t *target, char *data, ss
     int welcome_size = asprintf(&welcome_msg, "Welcome, %s.\n", pseudonyme);
     if (welcome_size == -1 || send_data(target->client_socket, welcome_msg, welcome_size) != 0)
         fprintf(stderr, "[CHATROOM SERVER CLIENT ACTION] Failed to broadcast message to a client\n");
+    free(welcome_msg);
     return target;
 }
 
@@ -257,6 +259,7 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
             return remove_wrapper(connection, client_socket, epoll_instance);
     }
     size_cpt += errc;
+    // free data
 
     // write(STDOUT_FILENO, data, size_cpt);
     //
@@ -274,6 +277,7 @@ struct connection_t *handle_client_event(int epoll_instance, int client_socket, 
             tmp = client_action(connection, data, size_cpt, sender);
             break;
     }
+    free(data);
     if (!tmp)
     {
         close(client_socket);

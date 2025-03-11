@@ -1,14 +1,15 @@
 project(
   'chatroom_server',
   'c',
-  version : '1.0.0',
+  version : '1.0.1',
   default_options : [
     'debug=true',
     'c_std=c99',
     'buildtype=debug',
     'warning_level=2',
     'werror=true',
-    'b_sanitize=address,undefined',
+    # debug leaks with valgrind
+    # 'b_sanitize=address,undefined',
     'optimization=plain',
   ],
 )
